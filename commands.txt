@@ -1,0 +1,12 @@
+export GHCR_PAT=<token>
+echo $GHCR_PAT | docker login ghcr.io -u hdro1710 --password-stdin
+
+cd payment-service
+docker build -t payment-service:1.0.0 .
+
+# Thử push tag sai để thấy lỗi (tùy chọn, nên chụp lại)
+docker push payment-service:1.0.0
+
+# Tag đúng chuẩn rồi push
+docker tag payment-service:1.0.0 ghcr.io/hdro1710/payment-service:1.0.0
+docker push ghcr.io/hdro1710/payment-service:1.0.0
