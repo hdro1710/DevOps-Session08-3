@@ -1,0 +1,53 @@
+name: verify-payment-service
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: payment-service
+  IMAGE_TAG: 1.0.0
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} \
+            -u "${{ github.actor }}" --password-stdin
+
+      - name: Build lowercase image name
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "IMAGE=${REGISTRY}/${OWNER}/${IMAGE_NAME}:${IMAGE_TAG}" >> "$GITHUB_ENV"
+
+      - name: Pull image
+        run: docker pull "$IMAGE"
+
+      - name: Run container (detached)
+        run: docker run -d --name verify -p 8080:8080 "$IMAGE"
+
+      - name: Verify health
+        run: |
+          for i in $(seq 1 15); do
+            if curl -fs http://localhost:8080/health; then
+              echo
+              echo "payment-service is UP"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Health check failed"
+          docker logs verify
+          exit 1
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f verify
